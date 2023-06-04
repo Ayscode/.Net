@@ -1,0 +1,523 @@
+// To create a new project via command line
+dotnet new webapi -n SampleTest
+
+// To trust the certificate that coms with .Net
+dotnet dev-certs https --trust
+
+You can prevent vscode from opening a new browser window everytime by removing the serverReadyAction section in the lainch.json file
+
+Add this section for faster launching of program, by using run build task in Terminal menu or ctrl + shift + B
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+
+Record Data Types - From .Net 5 and C# 9, This was introduced and although it is similar to classes, they ar eused for immutable objects, especially when you are receiving objects fromthe web and you are not expecting a change.
+They also have the with-expressions support
+They also allow for value based equality - where all the properties of the instance of an object are the smae to return true
+
+{get; init;} is alson introduced when you onky want to be able to set the value of a property at initialisation
+so you can only do this at creation but not the other after creation
+// You can do this
+Item item = new()
+{
+    Id = Guid.NewGuid()
+};
+
+// You cannot do this
+Item.Id = Guid.NewGuid()
+
+shortcut to launch property, tab completion prop tab tab
+
+Repository - Class in charge of storig the object in the system
+
+New addition in C# 9, Target types expressions
+so instead of
+List<Item> items = new List<Item>()
+you can just do this
+List<Item> items = new() {}
+
+We have an issue with the initial implemmtatio that instantialises the repository everytime, so a new Guid is createda nd so we can never really GET an Item, hence the need for dependency injection
+
+Dependency injection - When a class needs to make use of another class, we say that there is a depemdemcy on that class, here ItemsController class needing the reposiroty class
+so what we do is to receieve the repository in the constructor of the class and take it's referece into the Items class.
+So we are injecting the repository dependency into the ItemsController Class
+This also calls fro the Dependency Inversion Principle, where when a Class depends on Depency A, but instead of depending on the class itself, it depends on an abstraction of the class, in C# called an interface. So it depeends of interfecae A that depemndency A implements.
+You can also add other depenedencies to the interface and the class does not need to be tied to one dependency or know which ecaxct one it is depending on
+Why? - It helps decouple the code, making it easier and simpler to use
+To do this, we register each od the service in service container and the IServiceProvider does the resolution or ampping of the interface and classes.
+
+You can automatically extract interface by clicking on the bulb by the class and extract the interface, it also automatically implements it. Then you can nnow move it to its own file
+ 
+ We register it in the startup.cs file for >net 5 and lowe but for higher versions there is usually a sepereatr dependency injection file or it can be registered in program,cs
+ AddSingleton - We use this meaning we want only one instance of the interface to be created throughout the lifecyle of the service and would be reused
+
+ By default, we are exposing the entities schemas to the outside world which is not exactly safe security wise.
+ To shield this, we introduce a DTO which would be the one interfacing with the client. It would be similar to the entity
+ So with the Dto, we can choose to hide or remove some of the fileds or properites from ithe Item Entity so as to not expose it.
+ We would need to do some form of mapping though, we used the Linq select method to map them, and you can make it an extension to make it reusable (AutoMapper)
+ It has to be a static class and in this case what this does it to recieev the Entity and return it as its Dto
+
+ so we see not that we are exposing the ItemDto which can be anything we make it to be and not our actual entity
+
+ Post, Put, Delete, Validating Data of the Dtos
+
+ To add an new route or service method, you add it to the interface first and then you can go to the service itself to implement the interface.
+
+ Conventioanlly, when you create an item succcesfully, you would want to create an header that specifies the location or information about the created item using CreatedAtAction- or CreatedAtRoute
+To validate the data input when accepting request, we can make use of DataAnnotations, (FluentValidations)
+Even though in this case the CreateItemDto and UpdateItemDto are pretty much the same, it is a good idea to have a sperate one for them, incase there is a change in the future
+
+Conventioanlly for PUTs and Delete, you do not return anything, so you return Nocontent
+Note that we used the with expression because it is a record type. It basically creates a copy of the existing item with the specified variables modified
+
+Now using a persistent memory we would be using a Mondogb repository using Docker. This is needed because if the service stops or something happens to the inmemeory, everything goes
+You can use Files or Database. We would be using a No SQL database.
+Some benefits includem no need for schema, low latency, high performace and scalability
+
+To work with mongodb,w e are going to need a mongodbclient and inject it into the construction.
+We would also need the MingoDb Package
+dotnet add package MongoDB.Driver
+
+We then store the collectionnand the types of the entities or documents to be stored. The larger it gets, we can create a new file for it
+You would also put the credentials in the Appsettings
+
+You can either install the database on your system or use it on a docker instance - standalone package of softeware that has everything we need to run it.
+
+-d - run in detached mode
+--rm - destroys the container is destroyed after we close the process
+- port - map the ports, left is local to docker nsd right is the standard for mongodb
+-v - the volume to persist the data and map it to our local
+THen finally rhe name of the image
+docker run -d --rm --name mongo -p 27017:27017 -v mongodbdata:/data/db mongo
+To communicate with the Mongodb we are going to need to specify the Host and Port in the Appsettings
+Since iti is running in our machine, we can call the Host - LocalHost and we have the port as 27017
+
+To read the configs in the Appsettings into the service, the best way to do it is to declare a class that represents the settings, to be able to interact with the different sections inthe Appsettings
+
+Asynchronous programming - Here a couple of things are happening in parallel instead of sequentually, thus reducing the overall time of completing tasks.
+We can make async calls to the controller, the controller to the repository and interacting to the Database with an asynchronous call. 
+This would make the solution async all the way. The different parts would not have to wait for each other to finish to move to the next thing that it need to do, and this add a lot of performace and efficincy to the collectionnand
+
+A couple of things to achieve this, 
+First, make sure that each of the interface or methods items return task
+Also rename the methods to return an async suffix telling the consumer that the method is an async method
+You can leverage vscode refactoring for this
+You add Task to tthe return types and for void, you just replace with Task, not that you would need t oeffect the change in the service implemetation also
+Then for the database operations, you replace the methods with the asynchronous version
+Finallt, you ass async to the method name, and the await keyword to the method action
+
+There is a bug or issue that happens with .Net removing the Async Suffix in method names when you use nameof method. TO spress this, in the startup or program.cs, you pass. This is no longer there with recent versions
+builder.Services.AddControllers(options =>
+{
+    options.SuppressAsyncSufficInActionNames = false;
+});
+
+Secrets Managements
+- How to securely store secrets in developement that the API needs using .Net Secret Manager
+Before we have been storing credentials in our appsettings.
+Now that we want to create authentication to the database, needing username and password, we need to tell the Rest API how to use the information
+It is not advisable to specify the password into the Appsettings file - Never introduce secrets to the file
+
+We use secret manager here, it does not store it on a file but somewhere in our machine
+
+We would need to delete the volumen and start afresh with an authenticated version
+docker ps - confirm if the container is running
+docker stop mongo - stops the container
+docker volumen ls - lists the volumes to choose the one you are interested in
+docker volume rm mongodbdata - removes the particular volume of interest
+
+docker run -d --rm --name mongo -p 27019:27017 -v mongodbdata:/data/db -e MONGO_INITDB_ROOT_USERNAME=mongoadmin -e MONGO_INITDB_ROOT_PASSWORD=Password123 mongo
+-e To set environemntal variables
+
+Now the db has authentication but the API does not know this, you can add the username to the Appconfig file
+Instead of putting the password in the Appsetings config, this is where secret manager comes in
+We do this with the command
+dotnet user-secrets init
+dotnet user-secrets set MongoDbSettings:Password Password123
+You write the secret to conform to the format in the Appsettings
+
+Now to read the username and password to the code, we do this in the MongoDbSettings class
+
+Health checks - great way to report the health of the API and it's dependencies
+If the API goes down or something happens with the connection to the Database, there might be questions like is the API alive or can it reach the Db?
+If we enable the Healthcheck endpoint, it can provide that information.
+Ideally, you would have an orchestartor system that would know if and when the API service is ready to receiegve requests
+We can implement this in the program.cs file, you register the Services
+services.AddHealthChecks();
+and in the useEndpoints, you map the route you want it to be at.
+endpoints.MapHealthChecks("/health)
+This is a basic health check thatjust returns healthy if the API is healthy, like a ping to see if it up and running, but if the daatbase is down, the service is not really healthy
+TO tell and test if any dependencies are also in a halthy state, we use a nuget package,
+dotnet add package AspNetCore.HealthChecks.MongoDb
+This helps to checked for the health of the MongoDb
+You add some options to the program.cs file
+
+To check if the service is not just healthy; up an running but also ready to be used, or just alive, we add it to the program.cs and dependencyinjection file also
+We easily accomplish this by usingpredicates which essentially filter out the tags we want to check on
+Predicate = (_) => false - excludes every other check and returns true only if the rest API is alive 
+Predicate = (check) => check.Tags.Contains("ready") - The predicate here filters out all the check that contain the tag ready, checks if the database is alive
+
+You can customize and add more information to what is being displayed and this can be done in the program.cs by introducing a ResponsWrtiter and enumerating the information that you can displayed
+There are also other ready made healthchecks for different services alreadt build like the mondogb one w eused and you can check it on the AspNetCore.Diagnostics github
+There is also a HealthcheckUI
+
+Now looking at deploying the API to production environment and how to dockerize it
+
+Challenges of deployment
+moving from our development space to somewhere external where people can be able to access it.
+First we need to find an OS that can support the API. .Net is cross platfrom so that is not really an issue.
+We need the OS, the .Net 5 Runtime and other dependencies that need to be in the production environment, for us to then be able to succesfully run the API service
+We need to also take note of the database requirements of the service
+Preparing the box - There are a lot of challenges with the maintenance of physical servers, so it is better to use docker or a virtual machine for scaling, automation and the likes
+Docker - In the dockerfile you can declare the OS, the .Net version, dependencies, where to place the files and how to start the REST API
+THis handles most of the challenges outlined aboce
+So when we run the docker file on the docker engine, we create the docker image which can then be published to the contsiner registery so that it can accessible anywhere inthe cloud or even in the local.
+You can also leveragr some already made images like the mongodb we used in the container regisry. Now iti s ready for use
+When we pull and start it, then we have the docker container already running, so long as we have the docker engine
+You can also spin up multiple instances to increase scalability, and it does not use a lot of more memory...
+THere is also a faster start due to caching and you dont have to boot up the entore OS after the first time.
+Also there is also isolationa s they do not know about the other servics and it can run anywhere.. 
+
+How docker works and how to turn the REST API into a docker image
+create a corresponding docker file
+First, lets allow the REST API to not perform Https redirection but Http only to make things easier
+We can remove the Https url stated on the program.cs file app.useHttpsRedirection by setting a condition for if development environement
+app.Environment.IsDevelopment or env.IsDevelopment()
+
+TO genertae the dockerfile you can either do it manually or genrate it, by installing the addon and create it by menu
+YOu select the asp.net, the OS and others and it automatically createes the docker file for you
+It creates a Dockerfile and .dockerignore file
+
+In the Dockerfile, each line is an instruction and it adds a layer
+we optimized the file to remove redundant files
+dockerignore file declares files that are not needed to avoid a bigger file
+to builf the image, we use the cli and the following commands
+docker build -t sampletest:v1 .
+You specify the name for the image and a tag for it, which is like the version, then you specify the directly that has the dockerfile whuhc is usually our woking directory
+
+Note that there is also the docker for the database, the mongodb that we use earlier so we need to create a network connection such that the API service is able to cimmunicate with it
+we set up a docker network and have both containers connect tot hat network.\
+docker network create netsampletest
+docker network ls
+Now we just mdify the docker run command by specifying the network to be used
+docker run -d --rm --name mongo -p 27019:27017 -v mongodbdata:/data/db -e MONGO_INITDB_ROOT_USERNAME=mongoadmin -e MONGO_INITDB_ROOT_PASSWORD=Password123 --network=netsampletest mongo
+
+How to run the API as a docker container
+
+We can now run the API Services. we see it by running
+docker images
+
+we can now run the API service using the commands below
+
+-it - to make it intercative so that we can see the logs
+-rm - closes it when it ends
+-p - set the port to 80, then we also pass the credentials, and overwrite the localhost to the name of the container which we set as mongo, we set them as environment variables.
+docker run -it --rm -p 8080:80 -e MongoDbSettings:Host=mongo -e MongoDbSettings:Password=Password123 --network=netsampletest sampletest:v1
+docker run -it --rm --name sampletest -p 8080:80 -e MongoDbSettings:Host=mongo -e MongoDbSettings:Password=Password123 --network=netsampletest sampletest:v1
+Note that the Hosting envirionment had now changed to production
+
+Now to share this docker to other people using dockerhub to share the images
+
+First create a dockerhub account and the use the cli command `docker login` to login to the account witht he credentials you created with.
+To push to dockerhub, we need to retag the image to specify where we want to place it
+docker tag sampletest:v1 ayscode/sampletest:v1
+docker push ayscode/sampletest:v1
+
+To remove an image from your docker local, you do 
+docker rmi ayscode/sampletest:v1
+docker rmi sampletest:v1
+
+To pull the image
+docker pull ayscode/sampletest:v1
+or the full run command
+docker run -it --rm -p 8080:80 -e MongoDbSettings:Host=mongo -e MongoDbSettings:Password=Password123 --network=netsampletest ayscode/sampletest:v1
+
+Kubernetes - Deploying API service to prodyuction environment using Kubernetes
+Implications of running containers outside o  f the local and how kubernetes can help run distributed systems residently.
+
+
+Why are container orchestrators needed?
+Say we have a Node - where we run our Docker engine thatallows us to runthe API and mongo containe
+who manages pulling and running the container, docker run commands and the likes. would an automation be put in place
+Where can it it read the different parameters to run each of the containers
+What if there is a need for more container instances, there is aneed to spin up more instances...and even more nodes
+Where is the best place to place what nodes to insert a new docker containers
+WHo manages or monitors that all the containers are healthy and to restart it if it is not healthy
+Where can we securely store databse files and secrets?
+
+What is kubernets and what are it's basic components
+Nodes - Place comntainers in them
+Control Plane - Helps manages and takes cares of the activities between the different nodes, it can allocate pods to the different nodes
+Pods - smallest deployable unit of computing that can be created and managed in kubernetes. It is a group of one or more containers that dhare storage or network resources. It also declares how to run cinatiners in them
+We would mostly be working with pods, it is normal to have just one container in a pod, and have some other services in other pods or nodes like the mongodb service
+TO reach the other components or services in other pods, we make use of services
+
+
+Benefits of Kubernetes
+Turns Desired state into Actual state
+Also selects nodes to run pods
+Allows for self healing by creating and killing pods
+it can also store configuration and secrets
+Provides service discovery and load balancing
+Ensure no downtime, during redeployment, it rolls out the new version gradually and can rollback
+Can also allow for auto scale
+It can also auto mount storage
+
+
+How does Kubernets enable resilient distributed systems
+
+How to spin up a basic kubernets cluster in your box
+
+How to deploy REST API service and MongoDb to Kubernetes
+First thing we need is a Kubernetes cluster which can be easily set up if you have docker installed for development purposes
+It sets up a local cluster with just one node and it needs to download some images
+It should show kubernetes running
+To conform that you are connected to the right kubernetes cluster, you can use this with the kubectl - kube Control
+It should show dockerpdesktop as the name of the cluster installed by docker
+To start declaring how we want to deploy the components; Rest API and database, we would need to right some YAML filles
+We can easily do this with the vscode extensions; Kubernetes
+You can create a folder to store all kubernetes yaml files and when you type deploy, it should bring up an intellisense that would bring the basic deployment template
+This is what we woould use to declare the desired states of the containers and the pods that we want toget deployed for the REST API
+
+Now that we have sorted out the yaml files, see notes in files, we can now go on to deploy from the command line...
+Note that these commands need to be run in the kubernetes folder
+cd kubernetes 
+- kubectl apply -f .\sampletest.yaml
+ You should get a message stating that the deployment has been created
+ To see the status of the deployments
+- kubectl get deployments
+kubectl delete deployments sampletest-deployment
+
+to create the secret in kubernetes
+          # kubectl create secret generic sampletest-secrets --from-literal=mongodb-password='Password123'
+    
+
+ To see the actual pods
+- kubectl get pods
+TO delete a pod
+kubectl delete pod podname
+
+TO delete a node
+kubectl delete node nodename
+
+
+0/1 Ready - means that the livelnessProbe is returning a healthy status while the readinessProbe is not returning a healthy status, it has not finished intialising
+We can get more information by checking the logs- 
+kubectl logs 'name of pod'
+
+Now we set up the mongodb yaml and kubernetes deployment.
+We need a staefulset resource and we will still leverag the deploy template
+The stateful set has similarities with the deployment template, but then it is used with stateful applications where we are concerned about
+managing stateful applications guaranteeing the ordering and uniqueness of pods 
+The pods would not have random names, but ordered names and if one of the pods dies, the pos to treplace it has to have that name.
+This is important because we would need to attach a persistent volume to it containing the datafiles and we need to make sure that these files do not get localhost
+
+Now that we have the stateful set correctly created and declared in the mongodb.yaml file, we can now apply it and get the status of the sets
+- kubectl apply -f .\mongodb.yaml
+- kubectl get statefulsets
+
+
+Now to test for some of the functionalities of kubernetes like self healing, we open 2 terminals side by side and watch for the pods in one while we delete a pod in another to see how fast it restarts it
+To watch the pods for changes
+kubectl get pods -w
+
+TO stop or delete the statefulset
+- kubectl delete statefulsets mongodb-statefulset
+We can see that they are all now ready and available to use
+
+TO delete a pod
+kubectl delete pod podname
+
+For the deployment which are stateless, we see new pods with a different unique name, but with statefulset, we see that it retains the name of that exact mongodb and it persists the data that was already in the db
+
+How to scale a Kubernetes Deployment
+Now to scale, you can easily run
+kubectl scale deployments/sampletest-deployment --replicas=3
+
+We see it imediately provisioning new pods to enforce the new desired state.
+THis shows the power of docker and kubernetes working together
+
+TO try to simulate and test for load balacing with the various replicas, we introduce loggint ot he code to comform that it shares the loads to different pods
+We add the logger as a dependency injection and implement logging ot one of the controller, we then rebuild the image and redeploy to test
+
+Now we see them landing in various pods and loadbalancing working. if you scale into multiple pods, you see it handling all of them seasmlessly
+
+
+
+Unit Testing
+
+What is unit testing and why is it important
+Just like complex systems like rockets, you don't just test all the units and expect them to work at omce, each part or unit is tested in isolation multiple times even
+before even sent to the assembly and can be used assuredely so far it is used according to specificaions
+
+Unit Testing - A way to test evry piece of code in isolation without external dependencies
+In the Sample Test cpntroller project, there are various components` like the 
+ItemsController, ItemsRepository and MongoClient
+Each of the components have units within them like the CRUD items in the ItemsController
+The methods represent s the behaviour and functions that can be got from them
+Each of these units need to have a series of tests to ensure thst they would all worl well when assembled together before testing the service as a whole
+
+Benefits of unit tests
+- You can quicly validate code in seconds
+- You can make changes without worrying about regression or breaking the service
+- Unit tests find and catches bugs when it is easier and simpler to fix them, which is before merging to the codebase and gettingit to production
+- If done well, it is also the best live documentation of the service, simce every use case would be eventually turned into a unit test that represents the way the system works
+
+
+What is TDD - Test Driven development
+This is a software development approach where you write a test just before you write enough production code to make the failing tets pass
+It comsists of a 3 phase cycle
+- Write a failing test - Red Phase - Fails because you have not written any implemetation code
+- Make the code pass - Green Phase - You write just enough code to make the test pass, you do not need to implement anything beyond what is required to get the test to pass, you can write inelegant code
+- Refactor - Blue Phase - You refactor the code if needed while testing to make sure that they stay green
+At this point the code is readily for maintaninability and reusability and you keep repeating this cycle for any unit of components
+
+Why TDD
+- You focus on the requirements and not the implementation giving you a lot freedeom to address the requirement
+- It also increases the test coverage since you are developing and testing side by side
+- It also forces clean design of code, you also avoid writing code too coupled to be tested.
+
+3 main unit testing frameworks
+- nunit
+- MsTest
+- xUnit
+They all allow you to write and run unit tests in an automated test...the framework of choice is xUnit
+It is more intune with .Net and it is also helps you write cleaner tests. Iti s also more intuitive than MsTests requiring more attributes.
+
+
+How to unit test a REST Api controller via xUnit and implement TDD in practice
+- First, we restructure the files and folder by movign them into a API folder, and rename project file names as needed
+The csproj, dll, namespace, using, Also factor in folder level for the build in task.json and all the workspace files in launch.json
+Now when we confirm all is working fine and we can rebuild the docker image, 
+In the root directory we use the cli to genertae the test solution
+dotnet new xunit -n SampleTest.UnitTests
+It generates a project file and an initial class
+
+Now we would need to be bulding both projects, so we need to configure the task.json to do it.
+We create a new file at the root called build.proj that allows us build all the projects at once
+<Project Sdk="Microsoft.Build.Traversal/4.0.0"> //Check for the latest
+    <ItemGroup>
+        <ProjectReference Include="**/*.*proj"/>
+    </ItemGroup>
+</Project>
+It is basically going to traverse and run any files that end woth proj
+Now we include this in the task.json by pointing it to the build.proj file and you see it running both files
+
+Now we create a regerence to the Api from the test. We do thos from the cli
+switch to the test folder and 
+dotnet add reference <path of Api.scproj> 
+dotnet add reference ..\SampleTest.Api\SampleTest.Api.csproj
+So now the test project can use or reference any of the files in the Api project
+
+Now we need some more nuget packages for the test project
+Extensions Logging Abstractions - This is because we are using a logger in the API
+dotnet add package Microsoft.Extensions.Logging.Abstractions
+
+moq - This helps to mock the classes we are using in the controller, so that we can test without worrying about creating or how the external dependencies to the class work
+dotnet add package moq
+
+The naming convention of use is to append a test to the controller that we are working on or testing
+
+A nice way to restart the omnisharp when you have red squizzly lines, ctrl shift p
+
+the [Fact] attribute is what denotes the method is a test method and that's how the testrunner would know that it has to execute it. There are other ways to denote this though
+Now we would write unit test for all of the methods there.
+
+
+For GetItemAsync
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ItemDto>> GetItemAsync(Guid id)
+        {
+            var item = await repository.GetItemAsync(id);
+
+            if (item is null)
+            {
+                return NotFound();
+            }
+            return Ok(item.asDto());
+        }
+It is advisable to use a good naming conventions for the test methds so that you can easily know what eachh test case is doing
+So the naming convention to be adopted is
+UnitOfWork_StateUnderTest_ExpectedBehaviour()
+Translating into the method above we'd have
+GetItemAsync_WithUnexistingItem_ReturnsNotFound()
+
+public class ItemsControllerTest
+{
+    [Fact]
+    public void UnitOfWork_StateUnderTest_ExpectedBehaviour()
+    {
+        //Another naming comventionto adpat when writing test cases is
+
+        // Arrange - Just before you execute the test, this section sets everything up, Mocks, Variables needed for the test execution
+
+        // Act - Actually execute the test or perform the action that is needed
+
+        // Assert - Verify what needs to be verified about the outcome of the unit
+
+    }
+}
+
+So in this case, first we create an instance of Itemscontroller, for that we would need 2 parameters, the repository and the logger, but with unit testing, we do not really care about the working os the other dependencies...
+We just want to test the GetItemAsync methid, so we would need to exclude these dependecies and theor behaviours while performing the test.
+SO we introduce stubs - This is mock fake or instance of these items used just for the purpose of the test
+
+public class ItemsControllerTest
+{
+    [Fact]
+    public async Task GetItemAsync_WithUnexistingItem_ReturnsNotFound()
+    // We are changing the return type from void to async Task because the test is also an asynchronous call
+    {
+        // Arrange
+        // Items stub for the repository and logger items
+        var repositoryStub = new Mock<IInMemItemsRepository>();
+        // The diffeerence between a stub and a Mock is that no verifications are done on Stub objects while with Mocks, in the assert section, you would need to verifiy what hapopens to the Mock object accross the test
+        repositoryStub.Setup(repo => repo.GetItemAsync(It.IsAny<Guid>())).ReturnsAsync((Item)null);
+        // It does not matter what is passed as the paramter, Moq provides a value in there and then we are telling it that the expected behaviour is to return a value of null, casted as type Item to avoid ambuigity with Moq
+        // So we have setup the scenerio for repository paramter, sich that a value is passed to the method and a null value is expected
+
+        // Now for the logger
+        var loggerStub = new Mock<ILogger<ItemsController>>();
+
+        // Now to create the actual Controller
+        var controller = new ItemsController(repositoryStub.Object, loggerStub.Object);
+        // We pass in the objects of the stub because that's what's actually needed and so we have everything needed for the test ready.
+        
+
+        // Act
+        // This is usally just the one line that executes what we would be testing
+        var result = await controller.GetItemAsync(Guid.NewGuid());
+
+        // Assert
+        // Leveraging the assert methods available with xUnit...
+        Assert.IsType<NotFoundResult>(result.Result);
+        // So the result of the result variable shpuld be null or notfound as expected and this just asserts or confirms that
+
+    }
+}
+
+To run the test, we can us ethe code lens which are the buttons or annotations over the method name in vscode, such that when you click on run tests, it should just run the test
+And then we can see that the test has passed.
+Another wayt orun the test is via the cli, in the test directory, you run dotnet test
+this runs all the tests you have across the test project, and it is better when you start having more and more tests
+As the number of tests increases, you might want to find a way to visualise the status of the test cases, to see the ones that are passing and the ones that are failing
+To do this, we can us e a vscode extension called .Net core Test Explorer by Jun Han
+Now we just have to tell the extension how to locate the test project and you can do this by clicking on the gear icon, go to the folder path and enter **/*Tests.csproj
+You click on the Testing tab to the left and then click the play button
+If there was any errors, you would get a red squizzly icom where the code failed, else you would a pass mark
+
+Note that is best practice to just have one assertion per usecase, so in a case wherre you want to Assert.Equal the different fields ina class object, we can use a new package called FluentAssertions
+dotnet add package FluentAssertions
+
+Now all the test cases that we have gives us confodence in modifying the code wothout breaking anything. 
+So we make 2 changes to confirm this, we change the record to class in the Items Object and addind anither property to It
+
+Thenwe would also simplify the Dtos usage
+Here we put all the Dtos in a file and declare them as one line record woth their properties and types
+so now we have all the Dtos we will be using in the Rest API in one file instead of 3 differetn files
+
+Now that we have changed the Dtos as record types, they are now immutable and they must be created from the constructors and no one would be abel to change their properties
+
+TDD in practice
+

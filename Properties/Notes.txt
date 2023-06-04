@@ -1,0 +1,41 @@
+// To create a new project via command line
+dotnet new webapi -n SampleTest
+
+// To trust the certificate that coms with .Net
+dotnet dev-certs https --trust
+
+You can prevent vscode from opening a new browser window everytime by removing the serverReadyAction section in the lainch.json file
+
+Add this section for faster launching of program, by using run build task in Terminal menu or ctrl + shift + B
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+
+Record Data Types - From .Net 5 and C# 9, This was introduced and although it is similar to classes, they ar eused for immutable objects, especially when you are receiving objects fromthe web and you are not expecting a change.
+They also have the with-expressions support
+They also allow for value based equality - where all the properties of the instance of an object are the smae to return true
+
+{get; init;} is alson introduced when you onky want to be able to set the value of a property at initialisation
+so you can only do this at creation but not the other after creation
+// You can do this
+Item item = new()
+{
+    Id = Guid.NewGuid()
+};
+
+// You cannot do this
+Item.Id = Guid.NewGuid()
+
+shortcut to launch property, tab completion prop tab tab
+
+Repository - Class in charge of storig the object in the system
+
+New addition in C# 9, Target types expressions
+so instead of
+List<Item> items = new List<Item>()
+you can just do this
+List<Item> items = new() {}
+
+Dependency injection
+ 

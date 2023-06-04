@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+# apiversion - the API suffix that you want to deploy, the version chosen determines the features that you have access to
+kind: Deployment #It's a deployment object
+metadata:
+  name: myapp # The name of the deployment
+spec:
+  selector: # Used to specify how the deployment would select the pods that it is going to manage, so it will manage all the pods with an app label myapp
+    matchLabels:
+      app: myapp
+  template: # We declare the containers that would be included in the deployment
+    metadata:
+      labels: 
+        app: myapp #We can label the pod as sampletest and it has to match the label in the selector
+    spec:
+      containers: #We declare the list of containers to be included in the deployment
+      - name: myapp # We give it a name
+        image: <Image> # The image that we would be deploying which is the one deployed to dockerhub, it would pull the image
+        resources: # THe resources; memory and cpu needed by the kubernetes node in order to run the service
+          limits:
+            memory: "128Mi" #1mb - 1024kb
+            cpu: "500m" # 500 millicpu means 0.5cpu; half cpu
+        ports:
+        - containerPort: <Port> # Here we decalre the port that the container is exposing and we can communicate with to communicate with the Rest API
+# Now we need to specifiy the environemnt variables needed for communication with the mongo database
+        env:
+          - name: MongoDbSettings__Host
+          #Note that to show heiracy in yaml file sis with double underscores __ intead of column as in json file
+            value: mongodb-service
+          # Now to declare the password environment variable, to create the password, we make use of the kubernetes built in support for secrets and passwords
+          # Open terminal and type
+          # kubectl create secret generic sampletest-secrets --from-literal=mongodb-password='Password123'
+          - name: MongoDbSettings__Password
+            valueFrom:
+              secretKeyRef:
+                name: sampletest-secrets
+                key: mongodb-password
+          # Next we need to specify the health probes which basically enable kubernetes to constantly monitor the health of the Rest API by using the health checks that we have already defined.
+          # They help us know if our services/containers are in good shape or not, both the alive and readibess probe
+          # We first specify the liveness probe and specify the url to that get
+        livenessProbe:
+          httpGet:
+            path: /health/alive #if the API is up an running
+            port: 80 
+        readinessProbe:
+          httpGet:
+            path: /health/ready #if all the dependencies are responding correctly and ready to accept requests
+            port: 80
+          # Now to be able to allow access to this container from the outside, we bring in a new kubernetes component called service.
+          # we can create a new yaml file for this or specify it in the same file with 3 dashes ---
+          # We type the service keyboard and the intellisense brings up the basic services template
+---
+# Service is a type is respurce used to address resources within kubernetes either internally or externally. It is an abstract way to expose an application running on a set of pods as a network service
+apiVersion: v1
+kind: Service
+metadata:
+  name: sampletest-service # We give it a name
+spec:
+# We also need to specify a type, in this case, we use a Loadbalancer, it basically requests an IP or address to open up a window for access to the outside network
+  type: LoadBalancer
+  selector:
+    app: sampletest #we need to specify the same label as specified above so that it can select it. So we connect the service with the pods
+  ports:
+  - port: 80 #Same as port 80
+    targetPort: <Target Port> #THe target port is the port specified for the container, in this case it is 80, doeosn't always have to be
+# Now we can go on to deploy it.

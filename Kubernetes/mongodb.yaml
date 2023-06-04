@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb-statefulset
+spec:
+  selector:
+    matchLabels:
+      app: mongodb
+  serviceName: "mongodb-service" #Added to give identity to the stateful sets and the pods that would be managed for it, it is not mandatory for deployments but it is for statefulsets
+  # replicas: 2
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        selector: mongodb-statefulset
+    spec:
+      containers:
+      - name: mongodb-statefulset
+        image: mongo
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 27017
+          # name: web
+        volumeMounts: #This is to map the container to a space in the host machine and the container
+        - name: data #name here matches tha name of the volume claimed
+          mountPath: /data/db #path here matches where mongodb traditionally sotres data, meaning when the mongodb container writes to the db, the files end up in the persistent volume in the host. so if the pod goes down, the data is not lost
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            value: "mongoadmin"
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: sampletest-secrets
+                key: mongodb-password
+  volumeClaimTemplates: #Now we need to specify the persistent volume which is like a storage space to place the datafiles for the database
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ] # THe volumne would be ReadWrite and by a single node, meaning only one node can read and write to the volume at a time. There are other modes
+      resources:
+        requests:
+          storage: 1Gi #Claiming space in the node
+  #Now declaring the environment variables
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  clusterIP: None    #Used to specify the IP address for the service, by default the service gets a local IP to talk to other services within the cluster, but in this case of a stateful servic, we use a headless service, where we do not assign a service, but address each of the pod individuallt
+  selector:
+    app: mongodb #how the service is mapped to the pods that exists and it has to match the pod template name; mongodb
+  ports:
+  - port: 27017
+    targetPort: 27017
